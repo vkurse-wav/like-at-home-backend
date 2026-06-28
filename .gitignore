@@ -38,3 +38,6 @@ postgres_data/
 render.yaml
 railway.json
 Cafe1tok.rtf
+
+# Local virtualenv (не коммитить)
+.venv/
