@@ -31,7 +31,7 @@ API = f"https://api.telegram.org/bot{KASSA_BOT_TOKEN}"
 
 POLL_INTERVAL = 2          # как часто проверять заказы, ждущие ссылку (сек)
 AMOUNT_TOLERANCE = 1.0     # допуск при сравнении сумм (руб)
-LINK_TIMEOUT = 180         # сколько ждём ссылку от P1, потом отменяем заказ (сек)
+LINK_TIMEOUT = 1800        # сколько ждём ссылку от P1, потом отменяем заказ (сек, 30 мин)
 
 URL_RE = re.compile(r"https?://\S+")
 AMOUNT_RE = re.compile(r"([\d\s ]+(?:[.,]\d+)?)\s*₽")
