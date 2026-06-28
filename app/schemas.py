@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -26,6 +26,11 @@ class OrderResponseSchema(BaseModel):
     order_type: str
     context: Dict
     payment_confirmed_at: Optional[datetime] = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id_to_str(cls, v):
+        return str(v)
 
     class Config:
         from_attributes = True
