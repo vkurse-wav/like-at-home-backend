@@ -29,3 +29,18 @@ HOST = os.getenv("HOST", "0.0.0.0")
 
 # Курс
 VKP_RATE = float(os.getenv("VKP_RATE", "2.60"))
+
+# --- Прямой API SBP (api.sbp.business) ---
+# Креды ТОЛЬКО из окружения, НИКОГДА в коде/логах.
+SBP_BASE = os.getenv("SBP_BASE", "https://api.sbp.business/api_v1")
+SBP_LOGIN = os.getenv("SBP_LOGIN", "")
+SBP_PASSWORD = os.getenv("SBP_PASSWORD", "")      # terminal_key (Basic auth)
+SBP_API_KEY = os.getenv("SBP_API_KEY", "")        # x-api-key (ключ терминала)
+# Куда SBP шлёт колбэк об оплате (публичный бэк Ресто на Render)
+SBP_CALLBACK_URL = os.getenv(
+    "SBP_CALLBACK_URL",
+    "https://like-at-home-api.onrender.com/sbp/callback",
+)
+# Префикс заявок Ресто (не пересекается с VKP кошелька и BORD у P1)
+SBP_ORDER_PREFIX = "LAH"
+SBP_ORDER_SUFFIX = "SBP"

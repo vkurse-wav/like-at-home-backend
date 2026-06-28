@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 from .database import engine, Base
-from .routes import orders, webhooks
+from .routes import orders, webhooks, sbp_routes
 from .config import DEBUG, HOST, PORT
 import traceback
 
@@ -17,6 +17,9 @@ async def lifespan(app: FastAPI):
         with engine.connect() as conn:
             conn.execute(text(
                 "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_link VARCHAR(500)"
+            ))
+            conn.execute(text(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_qr VARCHAR(500)"
             ))
             conn.commit()
     except Exception as e:
@@ -55,6 +58,7 @@ async def global_exception_handler(request, exc):
 # Подключаем routes
 app.include_router(orders.router)
 app.include_router(webhooks.router)
+app.include_router(sbp_routes.router)
 
 @app.get("/")
 async def root():

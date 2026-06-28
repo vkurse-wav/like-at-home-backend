@@ -19,13 +19,14 @@ P1 - это личный аккаунт партнёра с автоответч
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 
 from .config import KASSA_BOT_TOKEN, P1_CHAT_ID
 from .database import SessionLocal
 from .models import Order
+from . import sbp
 
 API = f"https://api.telegram.org/bot{KASSA_BOT_TOKEN}"
 
@@ -37,6 +38,8 @@ def utcnow():
 POLL_INTERVAL = 2          # как часто проверять заказы, ждущие ссылку (сек)
 AMOUNT_TOLERANCE = 1.0     # допуск при сравнении сумм (руб)
 LINK_TIMEOUT = 1800        # сколько ждём ссылку от P1, потом отменяем заказ (сек, 30 мин)
+SBP_POLL_INTERVAL = 25     # как часто опрашивать st.php (сек)
+SBP_POLL_WINDOW = 1800     # как давно созданные link_sent заказы ещё опрашивать (сек)
 
 URL_RE = re.compile(r"https?://\S+")
 AMOUNT_RE = re.compile(r"([\d\s ]+(?:[.,]\d+)?)\s*₽")
@@ -185,6 +188,36 @@ def handle_p1_message(text):
         handle_link(url.group(0))
 
 
+def poll_sbp_status():
+    """
+    Страховка к колбэку SBP: опрашиваем st.php по заказам в link_sent (за
+    последние SBP_POLL_WINDOW сек) и метим оплаченные, если колбэк потерялся.
+    """
+    if not sbp.configured():
+        return
+    cutoff = utcnow() - timedelta(seconds=SBP_POLL_WINDOW)
+    db = SessionLocal()
+    try:
+        pending = (
+            db.query(Order)
+            .filter(Order.status == "link_sent")
+            .filter(Order.created_at >= cutoff)
+            .order_by(Order.created_at.asc())
+            .all()
+        )
+        for order in pending:
+            st = sbp.check_status(sbp.order_id_for(str(order.id)))
+            if st == "CONFIRMED":
+                order.status = "paid"
+                order.payment_confirmed_at = utcnow()
+                db.commit()
+                print(f"[kassa] заказ {order.id} оплачен (st.php CONFIRMED)")
+    except Exception as e:
+        print(f"[kassa] poll_sbp error: {e}")
+    finally:
+        db.close()
+
+
 # ---------- Режимы запуска ----------
 
 def whoami():
@@ -211,8 +244,9 @@ def run():
     print(f"[kassa] запущен. P1_CHAT_ID={P1_CHAT_ID or 'НЕ ЗАДАН - оплата не пойдёт'}")
     offset = None
     last_poll = 0.0
+    last_sbp_poll = 0.0
     while True:
-        # 1) Входящие сообщения (короткий long-poll)
+        # 1) Входящие сообщения (короткий long-poll) - fallback-канал через P1
         updates = tg_get_updates(offset=offset, timeout=10)
         for u in updates:
             offset = u["update_id"] + 1
@@ -227,11 +261,15 @@ def run():
                 # любой другой /start - подскажем chat_id в лог
                 print(f"[kassa] сообщение от chat_id={chat_id} (@{msg.get('chat',{}).get('username')}): {text!r}")
 
-        # 2) Раз в POLL_INTERVAL проверяем заказы, ждущие ссылку
         now = time.time()
+        # 2) Заказы, ждущие ссылку через бота (fallback, если SBP API недоступен)
         if now - last_poll >= POLL_INTERVAL:
             send_pending_requests()
             last_poll = now
+        # 3) Страховка к колбэку: опрос статусов SBP
+        if now - last_sbp_poll >= SBP_POLL_INTERVAL:
+            poll_sbp_status()
+            last_sbp_poll = now
 
 
 if __name__ == "__main__":

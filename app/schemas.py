@@ -20,6 +20,7 @@ class OrderResponseSchema(BaseModel):
     created_at: datetime
     status: str
     payment_link: Optional[str] = None
+    payment_qr: Optional[str] = None
     items: List[OrderItemSchema]
     total_baht: int
     total_rub: int

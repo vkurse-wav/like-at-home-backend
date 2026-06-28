@@ -96,12 +96,15 @@ async def send_order_to_bot(order: Order, db: Session):
         print(f"Error sending message to bot: {e}")
 
 @router.post("/{order_id}/request-link", response_model=OrderResponseSchema)
-async def request_payment_link(order_id: str, db: Session = Depends(get_db)):
+def request_payment_link(order_id: str, db: Session = Depends(get_db)):
     """
     Клиент нажал «получить ссылку на оплату».
-    Помечаем заказ awaiting_link - userbot увидит это, напишет P1 сумму
-    и положит ссылку обратно в order.payment_link.
+    Зовём SBP z1.php напрямую (id_order=LAH{order_id}SBP) и сразу кладём
+    url_pay/qr в заказ. При сбое API - откат на awaiting_link (бот-fallback).
     """
+    from .. import sbp
+    from ..config import SBP_CALLBACK_URL
+
     try:
         order_uuid = UUID(order_id)
     except ValueError:
@@ -111,12 +114,34 @@ async def request_payment_link(order_id: str, db: Session = Depends(get_db)):
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Если ссылки ещё нет и заказ не оплачен - ставим в очередь на ссылку
-    if not order.payment_link and order.status in ("pending", "awaiting_link"):
+    # Уже есть ссылка или заказ оплачен - просто возвращаем
+    if order.payment_link or order.status == "paid":
+        return order
+
+    # Прямой вызов SBP
+    if sbp.configured():
+        try:
+            data = sbp.create_payment(
+                rub=order.total_rub,
+                id_order=sbp.order_id_for(order_id),
+                callback_url=SBP_CALLBACK_URL,
+            )
+            order.payment_link = data.get("url_pay")
+            order.payment_qr = data.get("qr")
+            order.status = "link_sent"
+            db.commit()
+            db.refresh(order)
+            print(f"[orders] SBP ссылка создана для {order_id}")
+            return order
+        except Exception as e:
+            # Не светим креды/детали; падаем в fallback на бота
+            print(f"[orders] SBP z1.php сбой для {order_id}: {type(e).__name__}")
+
+    # Fallback: помечаем awaiting_link - бот кассы попробует через P1
+    if order.status in ("pending", "awaiting_link"):
         order.status = "awaiting_link"
         db.commit()
         db.refresh(order)
-
     return order
 
 @router.get("/{order_id}", response_model=OrderResponseSchema)

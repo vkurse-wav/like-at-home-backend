@@ -14,8 +14,9 @@ class Order(Base):
     # pending -> awaiting_link -> link_sent -> paid (или cancelled)
     status = Column(String(50), default="pending", index=True)
 
-    # Ссылка на оплату, которую прислал P1
+    # Ссылка на оплату (SBP url_pay) и картинка QR (SBP qr)
     payment_link = Column(String(500), nullable=True)
+    payment_qr = Column(String(500), nullable=True)
 
     # Заказ
     items = Column(JSON)  # [{id, name, qty, price}, ...]
@@ -40,6 +41,7 @@ class Order(Base):
             "created_at": self.created_at.isoformat(),
             "status": self.status,
             "payment_link": self.payment_link,
+            "payment_qr": self.payment_qr,
             "items": self.items,
             "total_baht": self.total_baht,
             "total_rub": self.total_rub,
