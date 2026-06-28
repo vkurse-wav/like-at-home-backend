@@ -13,16 +13,14 @@ BOT_CHAT_ID = os.getenv("BOT_CHAT_ID", "")  # ID Дамиана в Telegram
 # VKURSE Pay
 VKURSE_PAY_BOT_URL = "https://t.me/vkurse_pay_bot"
 
-# --- Userbot (Telethon) для общения с P1 ---
-# API_ID / API_HASH берутся на https://my.telegram.org → API development tools
-TELEGRAM_API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
-TELEGRAM_API_HASH = os.getenv("TELEGRAM_API_HASH", "")
-TELEGRAM_PHONE = os.getenv("TELEGRAM_PHONE", "")          # твой номер для входа
-P1_USERNAME = os.getenv("P1_USERNAME", "")               # @username или id чата P1
-# Userbot запускается только там, где ENABLE_USERBOT=true (на DO, он всегда онлайн)
-ENABLE_USERBOT = os.getenv("ENABLE_USERBOT", "false").lower() == "true"
-# Путь к файлу сессии Telethon (создаётся один раз скриптом авторизации)
-SESSION_PATH = os.getenv("SESSION_PATH", "userbot_session")
+# --- Kassa bot (Bot API) для общения с P1 ---
+# Отдельный бот @vkurse_kassa_bot: шлёт P1 сумму, ловит ссылку и подтверждение оплаты.
+KASSA_BOT_TOKEN = os.getenv("KASSA_BOT_TOKEN", "")
+# chat_id партнёра P1 (на тесте - @kate_yourdevil). Заполняется после того, как P1
+# один раз нажмёт /start у бота (бот узнает chat_id и мы пропишем его сюда).
+P1_CHAT_ID = os.getenv("P1_CHAT_ID", "")
+# Поллер бота запускается только там, где ENABLE_KASSA_BOT=true (на DO, always-on).
+ENABLE_KASSA_BOT = os.getenv("ENABLE_KASSA_BOT", "false").lower() == "true"
 
 # Сервер
 DEBUG = os.getenv("DEBUG", "False").lower() == "true"
