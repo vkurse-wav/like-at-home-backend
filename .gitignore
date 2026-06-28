@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Telethon session (НИКОГДА не коммитить - это доступ к твоему Telegram)
+*.session
+*.session-journal
+
 # Python
 __pycache__/
 *.py[cod]

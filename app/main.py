@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 from .database import engine, Base
 from .routes import orders, webhooks
 from .config import DEBUG, HOST, PORT
@@ -11,6 +12,15 @@ import traceback
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # Лёгкая миграция: добавляем новые колонки, если таблица уже существовала
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(
+                "ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_link VARCHAR(500)"
+            ))
+            conn.commit()
+    except Exception as e:
+        print(f"Migration warning: {e}")
     print("✅ Database initialized")
     yield
     print("🛑 Shutdown")

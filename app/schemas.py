@@ -19,6 +19,7 @@ class OrderResponseSchema(BaseModel):
     id: str
     created_at: datetime
     status: str
+    payment_link: Optional[str] = None
     items: List[OrderItemSchema]
     total_baht: int
     total_rub: int

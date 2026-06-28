@@ -11,7 +11,11 @@ class Order(Base):
 
     # Основные данные
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    status = Column(String(50), default="pending", index=True)  # pending, paid, cancelled
+    # pending -> awaiting_link -> link_sent -> paid (или cancelled)
+    status = Column(String(50), default="pending", index=True)
+
+    # Ссылка на оплату, которую прислал P1
+    payment_link = Column(String(500), nullable=True)
 
     # Заказ
     items = Column(JSON)  # [{id, name, qty, price}, ...]
@@ -35,6 +39,7 @@ class Order(Base):
             "id": str(self.id),
             "created_at": self.created_at.isoformat(),
             "status": self.status,
+            "payment_link": self.payment_link,
             "items": self.items,
             "total_baht": self.total_baht,
             "total_rub": self.total_rub,

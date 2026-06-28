@@ -95,6 +95,30 @@ async def send_order_to_bot(order: Order, db: Session):
     except Exception as e:
         print(f"Error sending message to bot: {e}")
 
+@router.post("/{order_id}/request-link", response_model=OrderResponseSchema)
+async def request_payment_link(order_id: str, db: Session = Depends(get_db)):
+    """
+    Клиент нажал «получить ссылку на оплату».
+    Помечаем заказ awaiting_link - userbot увидит это, напишет P1 сумму
+    и положит ссылку обратно в order.payment_link.
+    """
+    try:
+        order_uuid = UUID(order_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid order ID")
+
+    order = db.query(Order).filter(Order.id == order_uuid).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Если ссылки ещё нет и заказ не оплачен - ставим в очередь на ссылку
+    if not order.payment_link and order.status in ("pending", "awaiting_link"):
+        order.status = "awaiting_link"
+        db.commit()
+        db.refresh(order)
+
+    return order
+
 @router.get("/{order_id}", response_model=OrderResponseSchema)
 async def get_order(order_id: str, db: Session = Depends(get_db)):
     """Получить статус заказа"""
