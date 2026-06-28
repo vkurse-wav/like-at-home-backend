@@ -19,7 +19,7 @@ P1 - это личный аккаунт партнёра с автоответч
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 
@@ -28,6 +28,11 @@ from .database import SessionLocal
 from .models import Order
 
 API = f"https://api.telegram.org/bot{KASSA_BOT_TOKEN}"
+
+
+def utcnow():
+    """Наивный UTC (без tzinfo) - совместим с created_at в БД, без deprecation."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 POLL_INTERVAL = 2          # как часто проверять заказы, ждущие ссылку (сек)
 AMOUNT_TOLERANCE = 1.0     # допуск при сравнении сумм (руб)
@@ -95,7 +100,7 @@ def send_pending_requests():
             .first()
         )
         if in_flight:
-            age = (datetime.utcnow() - in_flight.created_at).total_seconds()
+            age = (utcnow() - in_flight.created_at).total_seconds()
             if age > LINK_TIMEOUT:
                 in_flight.status = "cancelled"
                 db.commit()
@@ -157,7 +162,7 @@ def handle_payment(amount):
         for order in candidates:
             if abs((order.total_rub or 0) - amount) <= AMOUNT_TOLERANCE:
                 order.status = "paid"
-                order.payment_confirmed_at = datetime.utcnow()
+                order.payment_confirmed_at = utcnow()
                 db.commit()
                 print(f"[kassa] заказ {order.id} оплачен ({amount} ₽)")
                 return
