@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: like_at_home
+      POSTGRES_PASSWORD: local_password
+      POSTGRES_DB: like_at_home
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://like_at_home:local_password@db:5432/like_at_home
+      BOT_TOKEN: ${BOT_TOKEN}
+      BOT_CHAT_ID: ${BOT_CHAT_ID}
+      DEBUG: "True"
+    depends_on:
+      - db
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:
