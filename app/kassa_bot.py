@@ -31,6 +31,7 @@ API = f"https://api.telegram.org/bot{KASSA_BOT_TOKEN}"
 
 POLL_INTERVAL = 2          # как часто проверять заказы, ждущие ссылку (сек)
 AMOUNT_TOLERANCE = 1.0     # допуск при сравнении сумм (руб)
+LINK_TIMEOUT = 180         # сколько ждём ссылку от P1, потом отменяем заказ (сек)
 
 URL_RE = re.compile(r"https?://\S+")
 AMOUNT_RE = re.compile(r"([\d\s ]+(?:[.,]\d+)?)\s*₽")
@@ -46,6 +47,9 @@ def tg_get_updates(offset=None, timeout=20):
     try:
         r = requests.get(f"{API}/getUpdates", params=params, timeout=timeout + 10)
         return r.json().get("result", [])
+    except requests.exceptions.Timeout:
+        # пустой long-poll - это норма, не шумим в логах
+        return []
     except Exception as e:
         print(f"[kassa] getUpdates error: {e}")
         return []
@@ -74,24 +78,43 @@ def parse_amount(text):
 # ---------- Работа с заказами ----------
 
 def send_pending_requests():
-    """Найти заказы awaiting_link и отправить P1 сумму."""
+    """
+    Запрашиваем ссылки строго ПО ОДНОЙ (сериализация). В ответе P1 только URL,
+    без привязки к заказу - поэтому пока не получили ссылку на текущий заказ,
+    следующую сумму не шлём. Так входящая ссылка всегда относится к одному заказу.
+    """
     if not P1_CHAT_ID:
         return
     db = SessionLocal()
     try:
-        pending = (
+        # Есть заказ, по которому уже ждём ссылку?
+        in_flight = (
+            db.query(Order)
+            .filter(Order.status == "link_requested")
+            .order_by(Order.created_at.asc())
+            .first()
+        )
+        if in_flight:
+            age = (datetime.utcnow() - in_flight.created_at).total_seconds()
+            if age > LINK_TIMEOUT:
+                in_flight.status = "cancelled"
+                db.commit()
+                print(f"[kassa] заказ {in_flight.id}: ссылка не пришла за {LINK_TIMEOUT}с, отменён")
+            return  # ждём, пока текущий разрешится (ссылкой или таймаутом)
+
+        # Свободно - берём следующий заказ, ждущий ссылку
+        nxt = (
             db.query(Order)
             .filter(Order.status == "awaiting_link")
             .order_by(Order.created_at.asc())
-            .all()
+            .first()
         )
-        for order in pending:
-            # P1 триггерится просто суммой в рублях (без слова-команды) -
-            # под эту сумму он и генерирует ссылку на оплату.
-            tg_send(P1_CHAT_ID, str(order.total_rub))
-            order.status = "link_requested"
+        if nxt:
+            # P1 триггерится просто суммой в рублях - под неё и генерит ссылку.
+            tg_send(P1_CHAT_ID, str(nxt.total_rub))
+            nxt.status = "link_requested"
             db.commit()
-            print(f"[kassa] P1 отправлено 'надо {order.total_rub}' по заказу {order.id}")
+            print(f"[kassa] P1 отправлено '{nxt.total_rub}' по заказу {nxt.id}")
     except Exception as e:
         print(f"[kassa] send_pending error: {e}")
     finally:
