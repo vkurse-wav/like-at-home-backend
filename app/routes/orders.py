@@ -32,12 +32,15 @@ async def create_order(
     db.commit()
     db.refresh(db_order)
 
-    # Отправляем уведомление боту
-    await send_order_to_bot(db_order)
+    # Отправляем уведомление боту (не блокируем если ошибка)
+    try:
+        await send_order_to_bot(db_order, db)
+    except Exception as e:
+        print(f"Warning: Failed to send bot notification: {e}")
 
     return db_order
 
-async def send_order_to_bot(order: Order):
+async def send_order_to_bot(order: Order, db: Session):
     """Отправить заказ боту для обработки оплаты"""
 
     # Формируем сообщение
@@ -66,7 +69,11 @@ async def send_order_to_bot(order: Order):
 Ссылка на оплату: {VKURSE_PAY_BOT_URL}?start={order.id}
 """
 
-    # Отправляем в Telegram
+    # Отправляем в Telegram (если токены установлены)
+    if not BOT_TOKEN or not BOT_CHAT_ID:
+        print("Warning: BOT_TOKEN or BOT_CHAT_ID not configured")
+        return
+
     try:
         response = requests.post(
             f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
@@ -81,11 +88,10 @@ async def send_order_to_bot(order: Order):
         if response.status_code == 200:
             data = response.json()
             order.telegram_message_id = data.get("result", {}).get("message_id")
-            # Обновляем БД с ID сообщения
-            from ..database import SessionLocal
-            db = SessionLocal()
             db.merge(order)
             db.commit()
+        else:
+            print(f"Telegram API error: {response.status_code}")
     except Exception as e:
         print(f"Error sending message to bot: {e}")
 
