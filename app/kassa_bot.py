@@ -86,7 +86,7 @@ def send_pending_requests():
             .all()
         )
         for order in pending:
-            tg_send(P1_CHAT_ID, str(order.total_rub))
+            tg_send(P1_CHAT_ID, f"Надо {order.total_rub}")
             order.status = "link_requested"
             db.commit()
             print(f"[kassa] P1 отправлено 'надо {order.total_rub}' по заказу {order.id}")
