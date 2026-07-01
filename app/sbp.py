@@ -90,3 +90,21 @@ def check_status(id_order: str) -> str:
     except Exception:
         return ""
     return str(data.get("st") or data.get("Status") or "").upper()
+
+
+def check_reachable() -> dict:
+    """
+    Диагностика связи с SBP: read-only вызов rate.php. Платёж НЕ создаётся.
+    Возвращает {reachable, status, rate} или {reachable: False, error: <тип>}.
+    Курс — публичная величина, не секрет; креды не логируем.
+    """
+    try:
+        r = requests.post(f"{SBP_BASE}/rate.php", headers=_headers(), data="", timeout=15)
+        try:
+            rate = r.json().get("rate")
+        except Exception:
+            rate = None
+        return {"reachable": r.status_code == 200 and rate is not None,
+                "status": r.status_code, "rate": rate}
+    except Exception as e:
+        return {"reachable": False, "error": type(e).__name__}

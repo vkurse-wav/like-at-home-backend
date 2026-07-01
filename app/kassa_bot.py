@@ -59,7 +59,8 @@ def tg_get_updates(offset=None, timeout=20):
         # пустой long-poll - это норма, не шумим в логах
         return []
     except Exception as e:
-        print(f"[kassa] getUpdates error: {e}")
+        # ВАЖНО: не печатаем str(e) - там URL с токеном бота. Только тип ошибки.
+        print(f"[kassa] getUpdates error: {type(e).__name__}")
         return []
 
 
@@ -67,7 +68,8 @@ def tg_send(chat_id, text):
     try:
         requests.post(f"{API}/sendMessage", json={"chat_id": chat_id, "text": text}, timeout=10)
     except Exception as e:
-        print(f"[kassa] sendMessage error: {e}")
+        # не логируем str(e) - в URL токен бота
+        print(f"[kassa] sendMessage error: {type(e).__name__}")
 
 
 # ---------- Парсинг ----------

@@ -73,3 +73,11 @@ async def sbp_callback(request: Request, db: Session = Depends(get_db)):
 @router.get("/health")
 async def sbp_health():
     return {"status": "ok", "sbp_configured": sbp.configured()}
+
+
+@router.get("/reachable")
+def sbp_reachable():
+    """Диагностика: может ли ЭТОТ сервер (Render) достучаться до SBP. Read-only."""
+    if not sbp.configured():
+        return {"configured": False}
+    return {"configured": True, **sbp.check_reachable()}
