@@ -50,10 +50,15 @@ def parse_order_id(id_order: str):
 def _headers() -> dict:
     if not configured():
         raise RuntimeError("SBP креды не заданы (.env)")
-    basic = base64.b64encode(f"{SBP_LOGIN}:{SBP_PASSWORD}".encode()).decode()
+    # .strip() критичен: лишний пробел/перенос строки в кредах (частая беда при
+    # вставке в Render Environment) ломает заголовок -> requests кидает ValueError.
+    login = SBP_LOGIN.strip()
+    password = SBP_PASSWORD.strip()
+    api_key = SBP_API_KEY.strip()
+    basic = base64.b64encode(f"{login}:{password}".encode()).decode()
     return {
         "Content-Type": "application/json",
-        "x-api-key": SBP_API_KEY,
+        "x-api-key": api_key,
         "Authorization": f"Basic {basic}",
     }
 
