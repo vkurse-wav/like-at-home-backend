@@ -23,7 +23,7 @@ from datetime import datetime, timezone, timedelta
 
 import requests
 
-from .config import KASSA_BOT_TOKEN, P1_CHAT_ID
+from .config import KASSA_BOT_TOKEN, P1_CHAT_ID, SBP_DIRECT_ENABLED
 from .database import SessionLocal
 from .models import Order
 from . import sbp
@@ -195,7 +195,8 @@ def poll_sbp_status():
     Страховка к колбэку SBP: опрашиваем st.php по заказам в link_sent (за
     последние SBP_POLL_WINDOW сек) и метим оплаченные, если колбэк потерялся.
     """
-    if not sbp.configured():
+    # В тест-режиме прямой SBP выключен - реальных SBP-заявок нет, опрашивать нечего.
+    if not SBP_DIRECT_ENABLED or not sbp.configured():
         return
     cutoff = utcnow() - timedelta(seconds=SBP_POLL_WINDOW)
     db = SessionLocal()

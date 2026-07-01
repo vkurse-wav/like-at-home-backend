@@ -31,6 +31,10 @@ HOST = os.getenv("HOST", "0.0.0.0")
 VKP_RATE = float(os.getenv("VKP_RATE", "2.60"))
 
 # --- Прямой API SBP (api.sbp.business) ---
+# ТЕСТ-РЕЖИМ: пока сайт не запущен, прямой SBP ВЫКЛЮЧЕН — заявки не уходят в
+# СБП, а падают в fallback (бот кассы шлёт сумму владельцу, ссылку он шлёт
+# руками). Чтобы включить боевой прямой SBP — env SBP_DIRECT_ENABLED=true.
+SBP_DIRECT_ENABLED = os.getenv("SBP_DIRECT_ENABLED", "false").lower() == "true"
 # Креды ТОЛЬКО из окружения, НИКОГДА в коде/логах.
 SBP_BASE = os.getenv("SBP_BASE", "https://api.sbp.business/api_v1")
 SBP_LOGIN = os.getenv("SBP_LOGIN", "")

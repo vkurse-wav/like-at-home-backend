@@ -103,7 +103,7 @@ def request_payment_link(order_id: str, db: Session = Depends(get_db)):
     url_pay/qr в заказ. При сбое API - откат на awaiting_link (бот-fallback).
     """
     from .. import sbp
-    from ..config import SBP_CALLBACK_URL
+    from ..config import SBP_CALLBACK_URL, SBP_DIRECT_ENABLED
 
     try:
         order_uuid = UUID(order_id)
@@ -118,8 +118,8 @@ def request_payment_link(order_id: str, db: Session = Depends(get_db)):
     if order.payment_link or order.status == "paid":
         return order
 
-    # Прямой вызов SBP
-    if sbp.configured():
+    # Прямой вызов SBP (только если включён боевой режим SBP_DIRECT_ENABLED)
+    if SBP_DIRECT_ENABLED and sbp.configured():
         try:
             data = sbp.create_payment(
                 rub=order.total_rub,
